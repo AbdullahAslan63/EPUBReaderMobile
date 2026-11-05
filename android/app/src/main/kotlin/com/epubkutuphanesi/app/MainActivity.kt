@@ -1,4 +1,4 @@
-package com.example.epub_kutuphanesi
+package com.epubkutuphanesi.app
 
 import io.flutter.embedding.android.FlutterActivity
 

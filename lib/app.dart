@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers/navigation_provider.dart';
+import 'providers/settings_provider.dart';
 import 'screens/bookmarks/bookmarks_screen.dart';
 import 'screens/library/library_screen.dart';
 import 'screens/settings/settings_screen.dart';
@@ -12,7 +13,9 @@ class EpubKutuphanesiApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    final settingsAsync = ref.watch(appSettingsProvider);
+    final themeMode =
+        settingsAsync.valueOrNull?.themeMode ?? ThemeMode.dark;
 
     return MaterialApp(
       title: 'EPUB Kütüphanesi',

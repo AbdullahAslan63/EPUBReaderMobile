@@ -48,34 +48,34 @@ swap etmek yasaktır (bkz. AGENTS.md).
 ## 4. v1 özellik listesi
 
 ### 4.1 Kitaplık
-- [ ] "Kitap Ekle" → `file_picker` ile `.epub` seçimi
-- [ ] Seçilen dosyanın uygulama belge klasörüne kopyalanması (orijinal taşınmaz/silinmez)
-- [ ] `epubx` ile metadata: başlık, yazar, kapak görseli
-- [ ] Kapak yoksa / metadata eksikse anlamlı placeholder (dosya adı veya “Bilinmeyen”)
-- [ ] Kitaplık: kapak görselli grid/liste
-- [ ] Kitap silme (kopyalanmış dosya + Hive kaydı)
-- [ ] Başlığa göre arama/filtreleme
+- [x] "Kitap Ekle" → `file_picker` ile `.epub` seçimi
+- [x] Seçilen dosyanın uygulama belge klasörüne kopyalanması (orijinal taşınmaz/silinmez)
+- [x] `epubx` ile metadata: başlık, yazar, kapak görseli
+- [x] Kapak yoksa / metadata eksikse anlamlı placeholder (dosya adı veya “Bilinmeyen”)
+- [x] Kitaplık: kapak görselli grid/liste
+- [x] Kitap silme (kopyalanmış dosya + Hive kaydı)
+- [x] Başlığa göre arama/filtreleme
 
 ### 4.2 Okuma ekranı
-- [ ] `flutter_epub_viewer` entegrasyonu
-- [ ] Metin boyutu (pinch + ayarlar menüsü)
-- [ ] Koyu / açık / sepya okuma teması
-- [ ] Paginated vs. kaydırmalı mod tercihi
-- [ ] TOC paneli, bölüme atlama
+- [x] `flutter_epub_viewer` entegrasyonu
+- [x] Metin boyutu (pinch + ayarlar menüsü)
+- [x] Koyu / açık / sepya okuma teması
+- [x] Paginated vs. kaydırmalı mod tercihi
+- [x] TOC paneli, bölüme atlama
 
 ### 4.3 Kaldığın yerden devam etme
-- [ ] `onRelocated` → CFI kaydı (debounce; her scroll event’inde yazma)
-- [ ] Kitaplıkta `% tamamlandı`
-- [ ] Açılışta son okunan kitaba hızlı erişim
+- [x] `onRelocated` → CFI kaydı (debounce; her scroll event’inde yazma)
+- [x] Kitaplıkta `% tamamlandı`
+- [x] Açılışta son okunan kitaba hızlı erişim
 
 ### 4.4 İşaretler (bookmark)
-- [ ] CFI bazlı işaret ekleme
-- [ ] Opsiyonel not
-- [ ] İşaretler listesi → tıklanınca ilgili CFI’ye gitme
+- [x] CFI bazlı işaret ekleme
+- [x] Opsiyonel not
+- [x] İşaretler listesi → tıklanınca ilgili CFI’ye gitme
 
 ### 4.5 Ayarlar
-- [ ] Uygulama teması (sistem / koyu / açık)
-- [ ] Varsayılan okuma teması ve font boyutu
+- [x] Uygulama teması (sistem / koyu / açık)
+- [x] Varsayılan okuma teması ve font boyutu
 - [ ] Yazı tipi seçimi → v1.1’e ertelenebilir
 
 ## 5. Veri modeli
@@ -149,7 +149,10 @@ Aşağıdakilerin **hepsi** sağlanmadan Faz 1 tamamlanmış sayılmaz:
 3. Kitap açılır; font boyutu ve okuma teması değişir.
 4. Uygulama kill edilip yeniden açılınca aynı kitap **aynı CFI** konumunda açılır.
 5. Bozuk EPUB eklenmeye çalışılınca kullanıcı uyarılır; yarım/bozuk kütüphane kaydı kalmaz.
-6. Smoke: en az **Android** ve **Windows veya Linux** üzerinde 1–4 doğrulanır.
+6. Smoke: en az **Android** üzerinde 1–4 doğrulanır; mümkünse **iOS veya macOS**.
+   `flutter_epub_viewer` resmi matrisi Android / iOS / macOS / Web’dir — Windows ve
+   Linux okuyucu smoke’u paket desteği gelene kadar zorunlu değildir (kütüphane UI
+   masaüstünde ayrı denenebilir).
 
 ## 10. Bilinçli ertelemeler
 
