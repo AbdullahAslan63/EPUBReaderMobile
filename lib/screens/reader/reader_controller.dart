@@ -7,23 +7,32 @@ import '../../models/book.dart';
 import '../../models/reading_progress.dart';
 import '../../services/library_service.dart';
 import '../../services/reading_progress_service.dart';
+import '../../utils/chapter_locator.dart';
+import '../../utils/font_size_limits.dart';
 import '../../utils/reading_theme_mapper.dart';
 
 /// Okuma iş mantığı — widget dışında (AGENTS.md).
+///
+/// CFI doğruluk kaynağı: [ReadingProgressService] (progress Hive box).
+/// [Book.lastCfi] / [Book.progressPercent] kitaplık listesi için denormalize ayna.
 class ReaderController {
   ReaderController({
-    required this.book,
+    required Book book,
     required LibraryService libraryService,
     required ReadingProgressService progressService,
     required AppSettings initialSettings,
     this.onBookUpdated,
-  })  : _library = libraryService,
+    double? initialProgressPercent,
+  })  : book = book,
+        _library = libraryService,
         _progress = progressService,
         readingTheme = initialSettings.readingTheme,
         fontSize = initialSettings.fontSize,
-        paginated = initialSettings.paginated;
+        paginated = initialSettings.paginated,
+        currentCfi = book.lastCfi,
+        progressPercent = initialProgressPercent ?? book.progressPercent;
 
-  final Book book;
+  Book book;
   final LibraryService _library;
   final ReadingProgressService _progress;
   final void Function(Book book)? onBookUpdated;
@@ -35,7 +44,7 @@ class ReaderController {
   bool paginated;
 
   String? currentCfi;
-  double progressPercent = 0;
+  double progressPercent;
   List<EpubChapter> chapters = const [];
 
   Timer? _debounce;
@@ -49,6 +58,29 @@ class ReaderController {
         fontSize: fontSize.round(),
         theme: epubThemeFromReading(readingTheme),
       );
+
+  /// Fihrist vurgusu — CFI/href eşlemesi.
+  String? get activeChapterHref =>
+      ChapterLocator.findForLocation(chapters, currentCfi)?.href;
+
+  /// Alt durum etiketi — CFI eşlemesi; yoksa progress sezgiseli.
+  String? get currentChapterTitle {
+    final matched = ChapterLocator.findForLocation(chapters, currentCfi);
+    if (matched != null) {
+      final title = matched.title.trim();
+      return title.isEmpty ? null : title;
+    }
+    if (chapters.isEmpty) return null;
+    final flat = ChapterLocator.flatten(chapters);
+    if (flat.isEmpty) return null;
+    final idx =
+        (progressPercent.clamp(0.0, 0.999) * flat.length).floor().clamp(
+              0,
+              flat.length - 1,
+            );
+    final title = flat[idx].title.trim();
+    return title.isEmpty ? null : title;
+  }
 
   void onRelocated(EpubLocation location) {
     currentCfi = location.startCfi;
@@ -68,7 +100,7 @@ class ReaderController {
   }
 
   Future<void> setFontSize(double size) async {
-    fontSize = size.clamp(12.0, 32.0).toDouble();
+    fontSize = FontSizeLimits.clamp(size);
     await epubController.setFontSize(fontSize: fontSize);
   }
 
@@ -86,6 +118,7 @@ class ReaderController {
 
   void goToChapter(EpubChapter chapter) {
     if (chapter.href.isEmpty) return;
+    currentCfi = chapter.href;
     epubController.display(cfi: chapter.href);
   }
 
@@ -93,14 +126,16 @@ class ReaderController {
     final pending = _pending;
     if (pending == null) return;
     _pending = null;
+    // SoT: progress box
     await _progress.saveProgress(pending);
-    final updated = book.copyWith(
+    // Ayna: kitaplık % / Devam et kartı
+    book = book.copyWith(
       lastCfi: pending.cfi,
       progressPercent: pending.percent,
       lastOpenedAt: DateTime.now(),
     );
-    await _library.updateBook(updated);
-    onBookUpdated?.call(updated);
+    await _library.updateBook(book);
+    onBookUpdated?.call(book);
   }
 
   Future<void> dispose() async {

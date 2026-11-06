@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../models/app_settings.dart';
 import '../../providers/settings_provider.dart';
+import '../../utils/font_size_limits.dart';
+import '../../widgets/reading_theme_chips.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -50,33 +51,13 @@ class SettingsScreen extends ConsumerWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: SegmentedButton<ReadingTheme>(
-                        segments: const [
-                          ButtonSegment(
-                            value: ReadingTheme.light,
-                            label: Text('Açık'),
-                            icon: Icon(Icons.light_mode_outlined, size: 18),
-                          ),
-                          ButtonSegment(
-                            value: ReadingTheme.dark,
-                            label: Text('Koyu'),
-                            icon: Icon(Icons.dark_mode_outlined, size: 18),
-                          ),
-                          ButtonSegment(
-                            value: ReadingTheme.sepia,
-                            label: Text('Sepya'),
-                            icon: Icon(Icons.auto_stories_outlined, size: 18),
-                          ),
-                        ],
-                        selected: {settings.readingTheme},
-                        onSelectionChanged: (selected) {
-                          ref
-                              .read(appSettingsProvider.notifier)
-                              .setReadingTheme(selected.first);
-                        },
-                      ),
+                    ReadingThemeChips(
+                      value: settings.readingTheme,
+                      onChanged: (theme) {
+                        ref
+                            .read(appSettingsProvider.notifier)
+                            .setReadingTheme(theme);
+                      },
                     ),
                   ],
                 ),
@@ -161,7 +142,8 @@ class _FontSizeControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = fontSize.clamp(12.0, 32.0);
+    final size = FontSizeLimits.clamp(fontSize);
+    final preview = size.clamp(FontSizeLimits.min, 40.0);
     return Column(
       children: [
         Text(
@@ -172,7 +154,7 @@ class _FontSizeControl extends StatelessWidget {
         Text(
           'Aa',
           style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontSize: size + 8,
+                fontSize: preview + 4,
                 height: 1.1,
               ),
         ),
@@ -187,9 +169,9 @@ class _FontSizeControl extends StatelessWidget {
           children: [
             IconButton(
               tooltip: 'Küçült',
-              onPressed: size <= 12
+              onPressed: size <= FontSizeLimits.min
                   ? null
-                  : () => onChanged((size - 2).clamp(12, 32)),
+                  : () => onChanged(FontSizeLimits.clamp(size - 2)),
               icon: const Text(
                 'A',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -197,9 +179,9 @@ class _FontSizeControl extends StatelessWidget {
             ),
             Expanded(
               child: Slider(
-                min: 12,
-                max: 32,
-                divisions: 10,
+                min: FontSizeLimits.min,
+                max: FontSizeLimits.max,
+                divisions: FontSizeLimits.divisions,
                 value: size,
                 label: '${size.round()}',
                 onChanged: onChanged,
@@ -207,9 +189,9 @@ class _FontSizeControl extends StatelessWidget {
             ),
             IconButton(
               tooltip: 'Büyüt',
-              onPressed: size >= 32
+              onPressed: size >= FontSizeLimits.max
                   ? null
-                  : () => onChanged((size + 2).clamp(12, 32)),
+                  : () => onChanged(FontSizeLimits.clamp(size + 2)),
               icon: const Text(
                 'A',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_settings.dart';
+import '../utils/font_size_limits.dart';
 import 'services_provider.dart';
 
 final appSettingsProvider =
@@ -24,8 +25,10 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettings> {
     final current = state.valueOrNull ?? const AppSettings();
     final mode = enabled ? ThemeMode.dark : ThemeMode.light;
     var next = current.copyWith(themeMode: mode);
-    // Uygulama teması ile okuma teması senkron (sepya koru).
-    if (current.readingTheme != ReadingTheme.sepia) {
+    // Uygulama teması ile okuma teması senkron (özel okuma temalarını koru).
+    final preserveReading = current.readingTheme == ReadingTheme.sepia ||
+        current.readingTheme == ReadingTheme.softDark;
+    if (!preserveReading) {
       next = next.copyWith(
         readingTheme: enabled ? ReadingTheme.dark : ReadingTheme.light,
       );
@@ -40,7 +43,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettings> {
 
   Future<void> setFontSize(double size) async {
     final current = state.valueOrNull ?? const AppSettings();
-    final clamped = size.clamp(12.0, 32.0).toDouble();
+    final clamped = FontSizeLimits.clamp(size);
     await _persist(current.copyWith(fontSize: clamped));
   }
 

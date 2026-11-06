@@ -5,6 +5,8 @@ enum ReadingTheme {
   light,
   dark,
   sepia,
+  /// Koyu zeminli, sepya/amber ton — gece okumada göz yormaz.
+  softDark,
 }
 
 /// Kalıcı uygulama + okuma varsayılanları.
