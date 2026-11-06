@@ -4,6 +4,10 @@ import '../models/reading_progress.dart';
 import 'hive_boxes.dart';
 
 /// CFI ilerlemesi — debounce UI/controller katmanında yapılır.
+///
+/// Bu box CFI için tek doğruluk kaynağıdır. [Book.lastCfi] /
+/// [Book.progressPercent] yalnızca kitaplık UI aynasıdır; resume
+/// [resolveResumeCfi] ile buradan okunur.
 class ReadingProgressService {
   ReadingProgressService({Box<Map>? progressBox})
       : _progress = progressBox ?? HiveBoxes.progressBox;
