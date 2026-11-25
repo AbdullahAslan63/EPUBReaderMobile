@@ -6,15 +6,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_epub_viewer/flutter_epub_viewer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/app_settings.dart';
 import '../../models/book.dart';
 import '../../providers/bookmarks_provider.dart';
 import '../../providers/services_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../theme/app_tokens.dart';
 import '../../utils/font_size_limits.dart';
 import '../../utils/resume_cfi.dart';
+import '../../widgets/app_page_header.dart';
+import '../../widgets/confirm_sheet.dart';
 import 'fihrist_drawer.dart';
+import 'reader_bottom_dock.dart';
 import 'reader_controller.dart';
-import 'reader_style_panel.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({
@@ -39,6 +43,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   var _chromeVisible = true;
+  var _dockPanel = ReaderDockPanel.none;
   var _pointerCount = 0;
   var _pinchBaseFont = 18.0;
   var _showFontChip = false;
@@ -53,8 +58,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   Future<void> _bootstrap() async {
     try {
-      final book =
-          await ref.read(libraryServiceProvider).getBook(widget.bookId);
+      final book = await ref
+          .read(libraryServiceProvider)
+          .getBook(widget.bookId);
       if (book == null) {
         setState(() {
           _loading = false;
@@ -62,7 +68,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         });
         return;
       }
-      if (!File(book.filePath).existsSync()) {
+      if (book.isConverting) {
+        setState(() {
+          _loading = false;
+          _error = 'Dönüşüm bitmeden kitap açılamaz.';
+        });
+        return;
+      }
+      if (book.conversionStatus == ConversionStatus.failed) {
+        setState(() {
+          _loading = false;
+          _error = 'Bu PDF EPUB’a dönüştürülemedi.';
+        });
+        return;
+      }
+      if (book.filePath.isEmpty || !File(book.filePath).existsSync()) {
         setState(() {
           _loading = false;
           _error = 'EPUB dosyası bulunamadı.';
@@ -121,53 +141,41 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   void _toggleChrome() {
-    setState(() => _chromeVisible = !_chromeVisible);
+    setState(() {
+      _chromeVisible = !_chromeVisible;
+      if (!_chromeVisible) _dockPanel = ReaderDockPanel.none;
+    });
+  }
+
+  void _toggleDock(ReaderDockPanel panel) {
+    setState(() {
+      _dockPanel = _dockPanel == panel ? ReaderDockPanel.none : panel;
+    });
   }
 
   Future<void> _addBookmark() async {
     final cfi = _controller?.currentCfi ?? _book?.lastCfi;
     if (cfi == null || cfi.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Konum henüz hazır değil.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Konum henüz hazır değil.')));
       return;
     }
 
-    final noteController = TextEditingController();
-    final note = await showDialog<String?>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('İşaret ekle'),
-        content: TextField(
-          controller: noteController,
-          decoration: const InputDecoration(
-            labelText: 'Not (isteğe bağlı)',
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, noteController.text.trim()),
-            child: const Text('Kaydet'),
-          ),
-        ],
-      ),
-    );
+    final note = await showNoteSheet(context);
     if (note == null) return;
 
-    await ref.read(bookmarksProvider.notifier).addBookmark(
+    await ref
+        .read(bookmarksProvider.notifier)
+        .addBookmark(
           bookId: widget.bookId,
           cfi: cfi,
           note: note.isEmpty ? null : note,
         );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('İşaret eklendi')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('İşaret eklendi')));
     }
   }
 
@@ -176,36 +184,34 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (c == null) return;
     final settings = ref.read(appSettingsProvider).valueOrNull;
     if (settings == null) return;
-    await ref.read(appSettingsProvider.notifier).setReadingTheme(c.readingTheme);
+    await ref
+        .read(appSettingsProvider.notifier)
+        .setReadingTheme(c.readingTheme);
     await ref.read(appSettingsProvider.notifier).setFontSize(c.fontSize);
     await ref.read(appSettingsProvider.notifier).setPaginated(c.paginated);
   }
 
-  Future<void> _openStylePanel() async {
+  Future<void> _setFontSize(double size) async {
     final c = _controller;
     if (c == null) return;
-    await showReaderStylePanel(
-      context: context,
-      fontSize: c.fontSize,
-      readingTheme: c.readingTheme,
-      paginated: c.paginated,
-      onFontSizeChanged: (size) async {
-        await c.setFontSize(size);
-        setState(() {});
-        await _persistReaderSettings();
-      },
-      onReadingThemeChanged: (theme) async {
-        await c.setReadingTheme(theme);
-        setState(() {});
-        await _persistReaderSettings();
-      },
-      onPaginatedChanged: (paginated) async {
-        await c.setPaginated(paginated);
-        setState(() {});
-        await _persistReaderSettings();
-      },
-      onAddBookmark: _addBookmark,
-    );
+    await c.setFontSize(size);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _setReadingTheme(ReadingTheme theme) async {
+    final c = _controller;
+    if (c == null) return;
+    await c.setReadingTheme(theme);
+    if (mounted) setState(() {});
+    await _persistReaderSettings();
+  }
+
+  Future<void> _togglePaginated() async {
+    final c = _controller;
+    if (c == null) return;
+    await c.setPaginated(!c.paginated);
+    if (mounted) setState(() {});
+    await _persistReaderSettings();
   }
 
   void _onPointerDown(PointerDownEvent event) {
@@ -245,18 +251,32 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_error != null || _book == null || _controller == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Okuma')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(_error ?? 'Bilinmeyen hata', textAlign: TextAlign.center),
-          ),
+        body: Column(
+          children: [
+            AppPageHeader(
+              title: 'Okuma',
+              leading: IconButton(
+                tooltip: 'Geri',
+                onPressed: () => Navigator.of(context).maybePop(),
+                icon: const Icon(Icons.arrow_back),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    _error ?? 'Bilinmeyen hata',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -265,10 +285,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final controller = _controller!;
     // İşaret override > progress/Book ayna (bootstrap’ta hizalanmış).
     final initialCfi = widget.initialCfiOverride ?? book.lastCfi;
-    final progressPct =
-        (controller.progressPercent * 100).clamp(0, 100).round();
+    final progress = controller.progressPercent.clamp(0.0, 1.0);
+    final progressPct = (progress * 100).round();
     final chapterLabel = controller.currentChapterTitle;
     final scheme = Theme.of(context).colorScheme;
+    final overlay = Theme.of(context).brightness == Brightness.dark
+        ? SystemUiOverlayStyle.light
+        : SystemUiOverlayStyle.dark;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -285,11 +308,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         },
       ),
       body: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: _chromeVisible
-            ? SystemUiOverlayStyle.light
-            : SystemUiOverlayStyle.light.copyWith(
-                statusBarColor: Colors.transparent,
-              ),
+        value: overlay.copyWith(statusBarColor: Colors.transparent),
         child: Listener(
           onPointerDown: _onPointerDown,
           onPointerUp: _onPointerUp,
@@ -319,8 +338,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 onTouchUp: (x, y) {
                   final down = _lastTouchDown;
                   if (down == null) return;
-                  final elapsed =
-                      DateTime.now().difference(down).inMilliseconds;
+                  final elapsed = DateTime.now()
+                      .difference(down)
+                      .inMilliseconds;
                   // Kısa dokunuş → chrome; kaydırma/uzun basmayı yok say.
                   if (elapsed < 220 && _pointerCount <= 1) {
                     _toggleChrome();
@@ -351,7 +371,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   alignment: Alignment.center,
                   child: Material(
                     color: scheme.inverseSurface.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppTokens.radius),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -368,53 +388,71 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     ),
                   ),
                 ),
-              // Üst chrome
               AnimatedSlide(
-                duration: const Duration(milliseconds: 220),
+                duration: AppTokens.chromeAnim,
                 offset: _chromeVisible ? Offset.zero : const Offset(0, -1.2),
                 curve: Curves.easeOutCubic,
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 180),
                   opacity: _chromeVisible ? 1 : 0,
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 4, 12, 0),
-                      child: Row(
-                        children: [
-                          IconButton.filledTonal(
-                            tooltip: 'Geri',
-                            onPressed: () => Navigator.of(context).maybePop(),
-                            icon: const Icon(Icons.arrow_back),
+                  child: IgnorePointer(
+                    ignoring: !_chromeVisible,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                scheme.surface.withValues(alpha: 0.94),
+                                scheme.surface.withValues(alpha: 0),
+                              ],
+                            ),
                           ),
-                          const Spacer(),
-                          Material(
-                            color: scheme.surfaceContainerHighest
-                                .withValues(alpha: 0.92),
-                            borderRadius: BorderRadius.circular(20),
+                          child: SafeArea(
+                            bottom: false,
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              child: Text(
-                                '%$progressPct',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              padding: const EdgeInsets.fromLTRB(4, 0, 16, 10),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Geri',
+                                    onPressed: () =>
+                                        Navigator.of(context).maybePop(),
+                                    icon: const Icon(Icons.arrow_back),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '%$progressPct',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                          fontFeatures: const [
+                                            FontFeature.tabularFigures(),
+                                          ],
+                                        ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 2,
+                          backgroundColor: scheme.outlineVariant,
+                          color: scheme.primary,
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              // Alt durum + FAB’lar
               AnimatedSlide(
-                duration: const Duration(milliseconds: 220),
+                duration: AppTokens.chromeAnim,
                 offset: _chromeVisible ? Offset.zero : const Offset(0, 1.2),
                 curve: Curves.easeOutCubic,
                 child: AnimatedOpacity(
@@ -422,50 +460,59 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   opacity: _chromeVisible ? 1 : 0,
                   child: Align(
                     alignment: Alignment.bottomCenter,
-                    child: SafeArea(
-                      top: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                    child: IgnorePointer(
+                      ignoring: !_chromeVisible,
+                      child: SafeArea(
+                        top: false,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            FloatingActionButton.small(
-                              heroTag: 'fihrist_fab',
-                              tooltip: 'Fihrist',
-                              onPressed: () =>
-                                  _scaffoldKey.currentState?.openDrawer(),
-                              child: const Icon(Icons.list_alt),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Material(
-                                color: scheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.92),
-                                borderRadius: BorderRadius.circular(14),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 10,
-                                  ),
-                                  child: Text(
-                                    [
-                                      book.title,
-                                      ?chapterLabel,
-                                    ].join(' · '),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        Theme.of(context).textTheme.labelMedium,
-                                  ),
+                            ColoredBox(
+                              color: scheme.surface.withValues(alpha: 0.94),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  8,
+                                  20,
+                                  8,
+                                ),
+                                child: Text(
+                                  [book.title, ?chapterLabel].join(' · '),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.labelMedium,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            FloatingActionButton(
-                              heroTag: 'style_fab',
-                              tooltip: 'Stil',
-                              onPressed: _openStylePanel,
-                              child: const Icon(Icons.apps),
+                            ReaderBottomDock(
+                              fontSize: controller.fontSize,
+                              readingTheme: controller.readingTheme,
+                              paginated: controller.paginated,
+                              expanded: _dockPanel,
+                              onFihrist: () =>
+                                  _scaffoldKey.currentState?.openDrawer(),
+                              onToggleFont: () =>
+                                  _toggleDock(ReaderDockPanel.font),
+                              onToggleTheme: () =>
+                                  _toggleDock(ReaderDockPanel.theme),
+                              onTogglePaginated: () {
+                                _togglePaginated();
+                              },
+                              onBookmark: () {
+                                _addBookmark();
+                              },
+                              onFontSizeChanged: (size) {
+                                _setFontSize(size);
+                              },
+                              onFontSizeChangeEnd: () {
+                                _persistReaderSettings();
+                              },
+                              onReadingThemeChanged: (theme) {
+                                _setReadingTheme(theme);
+                              },
                             ),
                           ],
                         ),

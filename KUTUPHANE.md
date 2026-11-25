@@ -2,13 +2,15 @@
 
 ## 1. Vizyon
 
-Risale-i Nur Kütüphanesi tarzı esnek, konforlu bir okuma deneyimi sunan; ama herhangi
-bir EPUB kitabı kabul eden kişisel kütüphane uygulaması. Kullanıcı kendi EPUB
-dosyalarını yükler; uygulama onları koyu tema, ayarlanabilir metin boyutu, kaldığın
-yerden devam etme ve işaretlerle sunar.
+Risale-i Nur Kütüphanesi tarzı esnek, konforlu bir okuma deneyimi sunan kişisel
+kütüphane. Kullanıcı hazır EPUB yükler; PDF seçerse dosya `converter/` servisinde
+OCR’dan geçip EPUB’a dönüşür ve okuyucu yalnızca bu EPUB’u açar. Koyu tema,
+ayarlanabilir metin boyutu, kaldığın yerden devam etme ve işaretler EPUB üzerinden
+çalışır.
 
-Kapsam dışı (bilinçli karar): PDF desteği, sunucu taraflı dönüştürme, OCR. Kullanıcı
-elinde EPUB yoksa uygulama dışında (Calibre vb.) dönüştürüp öyle yükler.
+PDF dönüşümü metni yeniden akıtır. Sütun, dipnot ve sayfa düzeni birebir korunmaz.
+Taranmış sayfalarda sonuç, tarama kalitesine bağlıdır. Uygulama içi PDF görüntüleyici
+yoktur.
 
 **Lugat / kelime anlamı** v1 kapsamında değildir. İleride ayrı bir sürümde
 değerlendirilebilir; bu faza kadar sözlük, `onTextSelected` akışı veya Dictionary
@@ -48,9 +50,10 @@ swap etmek yasaktır (bkz. AGENTS.md).
 ## 4. v1 özellik listesi
 
 ### 4.1 Kitaplık
-- [x] "Kitap Ekle" → `file_picker` ile `.epub` seçimi
+- [x] "Kitap Ekle" → `file_picker` ile `.epub` veya `.pdf` seçimi
 - [x] Seçilen dosyanın uygulama belge klasörüne kopyalanması (orijinal taşınmaz/silinmez)
-- [x] `epubx` ile metadata: başlık, yazar, kapak görseli
+- [x] PDF: kayıt hemen `converting`; OCR + EPUB dönüşümü arka planda, kütüphane kilitlenmez
+- [x] `epubx` ile metadata: başlık, yazar, kapak görseli (PDF’te indirme bitince)
 - [x] Kapak yoksa / metadata eksikse anlamlı placeholder (dosya adı veya “Bilinmeyen”)
 - [x] Kitaplık: kapak görselli grid/liste
 - [x] Kitap silme (kopyalanmış dosya + Hive kaydı)
@@ -85,12 +88,16 @@ Book
 - id
 - title
 - author
-- filePath           // kopyalanan epub’un yerel yolu
+- filePath           // kopyalanan epub’un yerel yolu; dönüşüm bitene kadar boş
 - coverImagePath     // nullable; yoksa UI placeholder
 - addedAt
 - lastOpenedAt
 - lastCfi            // kaldığın yer (CFI)
 - progressPercent
+- conversionStatus   // ready | converting | failed (eski kayıtlarda ready)
+- conversionJobId    // nullable; sunucu işi, uygulama yeniden açılınca poll
+- localSourcePath    // nullable; dönüşüm bitene kadar yerel PDF kopyası
+- conversionError    // nullable; başarısız dönüşümün Türkçe nedeni
 
 Bookmark
 - id
@@ -113,10 +120,14 @@ güvenilmez.
 | Dosya kopyalama / disk hatası | Kullanıcıya net mesaj; DB’ye yazma |
 | İzin reddi (platform) | Neden gerektiğini söyleyen mesaj |
 | Kayıtlı dosya sonradan silinmiş | Kitaplıkta “dosya bulunamadı”; yeniden ekleme yolu |
+| PDF dönüşümü başarısız / ağ kopması | Kayıt `failed`; yerel PDF durur; yarım EPUB ve yetim kapak silinir; karttan yeniden deneme |
+| PDF henüz dönüşmedi | Okuyucu açılmaz; kartta “Dönüştürülüyor” |
 
 ## 7. Non-functional (v1 hedefleri)
 
-- Tamamen **offline**; ağ zorunluluğu yok.
+- EPUB ekleme ve okuma **çevrimdışı**. PDF dönüşümü uygulama içindeki sabit sunucuya gider (`ConverterConfig`); dönüşmüş kitabın okuması yine çevrimdışıdır. Kullanıcıdan adres/anahtar istenmez.
+- Dönüştürme servisi `converter/` (Express, disk kuyruğu, `ocrmypdf --skip-text`, Calibre `ebook-convert`). `CONVERTER_API_KEY` boşsa uçlar açık; doluysa Bearer zorunlu. Çalıştırma: `converter/.env.example` → `.env`, sonra `docker compose up --build` veya VPS’te `epub-converter` systemd birimi. OCR dilleri `tur+eng`.
+- Faz 4 çoklu cihaz senkronu ve Firebase Auth bu servisin kapsamında değildir.
 - İlerleme kaydı UI’yi kilitlemez (debounce’lu arka plan yazımı).
 - Büyük EPUB’larda ilk açılış yavaş olabilir; crash / ANR olmamalı.
 - Uygulama genel `ThemeMode` ile epub `displaySettings` senkron tutulur.
@@ -158,5 +169,5 @@ Aşağıdakilerin **hepsi** sağlanmadan Faz 1 tamamlanmış sayılmaz:
 
 - Yazı tipi seçimi → v1.1 adayı
 - Lugat → ilerideki sürüm
-- PDF / OCR / sunucu dönüştürme → ürün vizyonu dışı (veya çok sonraki faz)
+- Uygulama içi PDF görüntüleyici yok; PDF yalnızca sunucuda EPUB’a çevrilir
 - Çoklu cihaz sync → Faz 4 (v2)

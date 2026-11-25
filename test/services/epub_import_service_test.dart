@@ -52,6 +52,29 @@ void main() {
     }
   });
 
+  test(
+    'PDF kopyalanır, orijinal yerinde kalır, kayıt henüz yazılmaz',
+    () async {
+      final original = File('${tempDir.path}/Risale_Nur.pdf')
+        ..writeAsStringSync('%PDF-1.4');
+
+      final service = EpubImportService();
+      final book = await service.stagePdfCopy(
+        original.path,
+        fallbackTitle: 'Risale_Nur.pdf',
+      );
+
+      expect(book.isConverting, isTrue);
+      expect(book.filePath, isEmpty);
+      expect(book.title, 'Risale Nur');
+      expect(book.author, 'Bilinmeyen');
+      expect(original.existsSync(), isTrue);
+      expect(book.localSourcePath, isNotNull);
+      expect(File(book.localSourcePath!).existsSync(), isTrue);
+      expect(File(book.localSourcePath!).readAsStringSync(), '%PDF-1.4');
+    },
+  );
+
   test('olmayan dosya Türkçe hata verir', () async {
     final service = EpubImportService();
     expect(

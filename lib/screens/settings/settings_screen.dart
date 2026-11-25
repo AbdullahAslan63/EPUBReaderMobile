@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../providers/settings_provider.dart';
 import '../../utils/font_size_limits.dart';
+import '../../widgets/app_page_header.dart';
 import '../../widgets/reading_theme_chips.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -13,45 +14,47 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsAsync = ref.watch(appSettingsProvider);
 
-    return settingsAsync.when(
-      data: (settings) {
-        final scheme = Theme.of(context).colorScheme;
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            _SettingsCard(
-              child: SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                secondary: Icon(
-                  settings.isDarkTheme
-                      ? Icons.dark_mode
-                      : Icons.dark_mode_outlined,
-                  color: scheme.primary,
-                ),
-                title: const Text('Koyu tema'),
-                subtitle: Text(
-                  settings.isDarkTheme ? 'Açık' : 'Kapalı',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                value: settings.isDarkTheme,
-                onChanged: (value) {
-                  ref.read(appSettingsProvider.notifier).setDarkTheme(value);
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-            _SettingsCard(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Okuma teması',
-                      style: Theme.of(context).textTheme.titleMedium,
+    return Column(
+      children: [
+        const AppPageHeader(title: 'Ayarlar'),
+        Expanded(
+          child: settingsAsync.when(
+            data: (settings) {
+              final scheme = Theme.of(context).colorScheme;
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(0, 8, 0, 28),
+                children: [
+                  const _SectionLabel('Uygulama'),
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                    title: const Text('Koyu tema'),
+                    subtitle: Text(settings.isDarkTheme ? 'Koyu' : 'Açık'),
+                    value: settings.isDarkTheme,
+                    onChanged: (value) {
+                      ref
+                          .read(appSettingsProvider.notifier)
+                          .setDarkTheme(value);
+                    },
+                  ),
+                  Divider(color: scheme.outlineVariant),
+                  const _SectionLabel('Okuma varsayılanları'),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    child: Text(
+                      'Yeni oturumlarda kullanılır. Açık kitapta alt çubuk geçerlidir.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
-                    const SizedBox(height: 12),
-                    ReadingThemeChips(
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                    child: Text(
+                      'Tema',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: ReadingThemeChips(
                       value: settings.readingTheme,
                       onChanged: (theme) {
                         ref
@@ -59,83 +62,84 @@ class SettingsScreen extends ConsumerWidget {
                             .setReadingTheme(theme);
                       },
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _SettingsCard(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
-                child: _FontSizeControl(
-                  fontSize: settings.fontSize,
-                  onChanged: (value) {
-                    ref.read(appSettingsProvider.notifier).setFontSize(value);
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _SettingsCard(
-              child: SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                title: const Text('Sayfalı okuma'),
-                subtitle: const Text('Kapalıysa kaydırmalı mod'),
-                value: settings.paginated,
-                onChanged: (value) {
-                  ref.read(appSettingsProvider.notifier).setPaginated(value);
-                },
-              ),
-            ),
-            const SizedBox(height: 24),
-            FutureBuilder<PackageInfo>(
-              future: PackageInfo.fromPlatform(),
-              builder: (context, snapshot) {
-                final version = snapshot.data?.version ?? '1.0.0';
-                final build = snapshot.data?.buildNumber ?? '1';
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('EPUB Kütüphanesi'),
-                  subtitle: Text(
-                    'v$version+$build — çevrimdışı EPUB okuyucu',
-                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-                );
-              },
-            ),
-          ],
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Ayarlar yüklenemedi: $e')),
+                  const SizedBox(height: 8),
+                  _FontSizeControl(
+                    fontSize: settings.fontSize,
+                    onChanged: (value) {
+                      ref.read(appSettingsProvider.notifier).setFontSize(value);
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                    title: const Text('Sayfalı okuma'),
+                    subtitle: const Text('Kapalıysa kaydırmalı mod'),
+                    value: settings.paginated,
+                    onChanged: (value) {
+                      ref
+                          .read(appSettingsProvider.notifier)
+                          .setPaginated(value);
+                    },
+                  ),
+                  Divider(color: scheme.outlineVariant),
+                  const _SectionLabel('Hakkında'),
+                  FutureBuilder<PackageInfo>(
+                    future: PackageInfo.fromPlatform(),
+                    builder: (context, snapshot) {
+                      final version = snapshot.data?.version ?? '1.0.0';
+                      final build = snapshot.data?.buildNumber ?? '1';
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'EPUB Kütüphanesi',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'v$version+$build — EPUB çevrimdışı; PDF sunucuda dönüşür',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('Ayarlar yüklenemedi: $e')),
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _SettingsCard extends StatelessWidget {
-  const _SettingsCard({required this.child});
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
 
-  final Widget child;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.45,
-          ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: child,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
+      child: Text(
+        text,
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(letterSpacing: 0.6),
+      ),
     );
   }
 }
 
 class _FontSizeControl extends StatelessWidget {
-  const _FontSizeControl({
-    required this.fontSize,
-    required this.onChanged,
-  });
+  const _FontSizeControl({required this.fontSize, required this.onChanged});
 
   final double fontSize;
   final ValueChanged<double> onChanged;
@@ -143,61 +147,52 @@ class _FontSizeControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = FontSizeLimits.clamp(fontSize);
-    final preview = size.clamp(FontSizeLimits.min, 40.0);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Yazı boyutu',
-          style: Theme.of(context).textTheme.titleMedium,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: Text(
+            'Yazı boyutu  ${size.round()}',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Aa',
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontSize: preview + 4,
-                height: 1.1,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Küçült',
+                onPressed: size <= FontSizeLimits.min
+                    ? null
+                    : () => onChanged(FontSizeLimits.clamp(size - 2)),
+                icon: const Text(
+                  'A',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
               ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '${size.round()}',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
+              Expanded(
+                child: Slider(
+                  min: FontSizeLimits.min,
+                  max: FontSizeLimits.max,
+                  divisions: FontSizeLimits.divisions,
+                  value: size,
+                  label: '${size.round()}',
+                  onChanged: onChanged,
+                ),
               ),
-        ),
-        Row(
-          children: [
-            IconButton(
-              tooltip: 'Küçült',
-              onPressed: size <= FontSizeLimits.min
-                  ? null
-                  : () => onChanged(FontSizeLimits.clamp(size - 2)),
-              icon: const Text(
-                'A',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              IconButton(
+                tooltip: 'Büyüt',
+                onPressed: size >= FontSizeLimits.max
+                    ? null
+                    : () => onChanged(FontSizeLimits.clamp(size + 2)),
+                icon: const Text(
+                  'A',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                ),
               ),
-            ),
-            Expanded(
-              child: Slider(
-                min: FontSizeLimits.min,
-                max: FontSizeLimits.max,
-                divisions: FontSizeLimits.divisions,
-                value: size,
-                label: '${size.round()}',
-                onChanged: onChanged,
-              ),
-            ),
-            IconButton(
-              tooltip: 'Büyüt',
-              onPressed: size >= FontSizeLimits.max
-                  ? null
-                  : () => onChanged(FontSizeLimits.clamp(size + 2)),
-              icon: const Text(
-                'A',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

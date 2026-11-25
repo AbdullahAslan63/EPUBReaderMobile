@@ -31,10 +31,8 @@ class BookCover extends StatelessWidget {
             ? Image.file(
                 File(path),
                 fit: BoxFit.cover,
-                errorBuilder: (_, error, stackTrace) => _Placeholder(
-                  title: book.title,
-                  scheme: scheme,
-                ),
+                errorBuilder: (_, error, stackTrace) =>
+                    _Placeholder(title: book.title, scheme: scheme),
               )
             : _Placeholder(title: book.title, scheme: scheme),
       ),
@@ -57,8 +55,8 @@ class _Placeholder extends StatelessWidget {
         child: Text(
           letter,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: scheme.onSecondaryContainer,
-              ),
+            color: scheme.onSecondaryContainer,
+          ),
         ),
       ),
     );

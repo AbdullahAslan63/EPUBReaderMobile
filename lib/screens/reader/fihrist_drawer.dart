@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_epub_viewer/flutter_epub_viewer.dart';
 
+import '../../widgets/quiet_search_field.dart';
+
 /// Modern sol fihrist — süzme + genişleyen bölüm ağacı.
 class FihristDrawer extends StatefulWidget {
   const FihristDrawer({
@@ -66,7 +68,8 @@ class _FihristDrawerState extends State<FihristDrawer> {
 
     return Drawer(
       width: width,
-      backgroundColor: scheme.surfaceContainerLow,
+      elevation: 0,
+      backgroundColor: scheme.surface,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -78,9 +81,7 @@ class _FihristDrawerState extends State<FihristDrawer> {
                   Expanded(
                     child: Text(
                       'Fihrist',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
                   IconButton(
@@ -93,20 +94,14 @@ class _FihristDrawerState extends State<FihristDrawer> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: SearchBar(
+              child: QuietSearchField(
                 controller: _filterController,
-                hintText: 'Süz',
-                leading: const Icon(Icons.filter_list),
-                trailing: [
-                  if (_query.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _filterController.clear();
-                        setState(() => _query = '');
-                      },
-                    ),
-                ],
+                hint: 'Bölüm ara',
+                showClear: _query.isNotEmpty,
+                onClear: () {
+                  _filterController.clear();
+                  setState(() => _query = '');
+                },
                 onChanged: (value) => setState(() => _query = value),
               ),
             ),
@@ -114,20 +109,20 @@ class _FihristDrawerState extends State<FihristDrawer> {
               child: widget.chapters.isEmpty
                   ? const Center(child: Text('Bölümler yükleniyor…'))
                   : filtered.isEmpty
-                      ? const Center(child: Text('Sonuç yok'))
-                      : ListView(
-                          padding: const EdgeInsets.only(bottom: 24),
-                          children: [
-                            for (final chapter in filtered)
-                              _ChapterNode(
-                                chapter: chapter,
-                                depth: 0,
-                                activeHref: widget.activeHref,
-                                forceExpanded: _query.isNotEmpty,
-                                onSelected: widget.onChapterSelected,
-                              ),
-                          ],
-                        ),
+                  ? const Center(child: Text('Sonuç yok'))
+                  : ListView(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      children: [
+                        for (final chapter in filtered)
+                          _ChapterNode(
+                            chapter: chapter,
+                            depth: 0,
+                            activeHref: widget.activeHref,
+                            forceExpanded: _query.isNotEmpty,
+                            onSelected: widget.onChapterSelected,
+                          ),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -162,16 +157,28 @@ class _ChapterNode extends StatelessWidget {
     final hasChildren = chapter.subitems.isNotEmpty;
     final title = chapter.title.isEmpty ? 'Bölüm' : chapter.title;
     final titleStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: _isActive ? scheme.primary : null,
-          fontWeight: _isActive || depth == 0 ? FontWeight.w600 : FontWeight.w400,
-          fontSize: depth == 0 ? 16 : 14,
-        );
+      color: _isActive ? scheme.primary : null,
+      fontWeight: _isActive || depth == 0 ? FontWeight.w600 : FontWeight.w400,
+      fontSize: depth == 0 ? 16 : 14,
+    );
 
     if (!hasChildren) {
-      return ListTile(
-        contentPadding: EdgeInsets.only(left: 16.0 + depth * 12, right: 16),
-        title: Text(title, style: titleStyle),
+      return InkWell(
         onTap: () => onSelected(chapter),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: _isActive ? scheme.primary : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16.0 + depth * 12, 12, 16, 12),
+            child: Text(title, style: titleStyle),
+          ),
+        ),
       );
     }
 
@@ -181,7 +188,20 @@ class _ChapterNode extends StatelessWidget {
         initiallyExpanded: forceExpanded || depth == 0,
         tilePadding: EdgeInsets.only(left: 8.0 + depth * 8, right: 8),
         childrenPadding: EdgeInsets.zero,
-        title: Text(title, style: titleStyle),
+        title: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: _isActive ? scheme.primary : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Text(title, style: titleStyle),
+          ),
+        ),
         onExpansionChanged: (_) {},
         children: [
           ListTile(
@@ -189,9 +209,9 @@ class _ChapterNode extends StatelessWidget {
             contentPadding: EdgeInsets.only(left: 28.0 + depth * 12, right: 16),
             title: Text(
               'Bölüme git',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.primary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.primary),
             ),
             onTap: () => onSelected(chapter),
           ),

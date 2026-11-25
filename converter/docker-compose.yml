@@ -1,0 +1,17 @@
+services:
+  converter:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      CONVERTER_API_KEY: ${CONVERTER_API_KEY:-}
+      CONVERTER_DATA_DIR: /data
+      OCR_LANGS: ${OCR_LANGS:-tur+eng}
+      CONVERTER_JOB_TTL_HOURS: ${CONVERTER_JOB_TTL_HOURS:-24}
+    volumes:
+      - converter-data:/data
+    restart: unless-stopped
+
+volumes:
+  converter-data:

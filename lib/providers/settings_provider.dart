@@ -7,8 +7,8 @@ import 'services_provider.dart';
 
 final appSettingsProvider =
     AsyncNotifierProvider<AppSettingsNotifier, AppSettings>(
-  AppSettingsNotifier.new,
-);
+      AppSettingsNotifier.new,
+    );
 
 class AppSettingsNotifier extends AsyncNotifier<AppSettings> {
   @override
@@ -26,7 +26,8 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettings> {
     final mode = enabled ? ThemeMode.dark : ThemeMode.light;
     var next = current.copyWith(themeMode: mode);
     // Uygulama teması ile okuma teması senkron (özel okuma temalarını koru).
-    final preserveReading = current.readingTheme == ReadingTheme.sepia ||
+    final preserveReading =
+        current.readingTheme == ReadingTheme.sepia ||
         current.readingTheme == ReadingTheme.softDark;
     if (!preserveReading) {
       next = next.copyWith(

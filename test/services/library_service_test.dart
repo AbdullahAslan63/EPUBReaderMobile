@@ -53,6 +53,7 @@ void main() {
   test('deleteBook dosya, progress ve işaretleri temizler', () async {
     final epub = File('${tempDir.path}/book.epub')..writeAsStringSync('x');
     final cover = File('${tempDir.path}/cover.jpg')..writeAsStringSync('y');
+    final source = File('${tempDir.path}/book.pdf')..writeAsStringSync('p');
 
     final library = LibraryService();
     final progress = ReadingProgressService();
@@ -67,6 +68,7 @@ void main() {
         filePath: epub.path,
         coverImagePath: cover.path,
         addedAt: DateTime.now(),
+        localSourcePath: source.path,
       ),
     );
     await progress.saveProgress(
@@ -93,5 +95,6 @@ void main() {
     expect(await bookmarks.getByBookId(id), isEmpty);
     expect(epub.existsSync(), isFalse);
     expect(cover.existsSync(), isFalse);
+    expect(source.existsSync(), isFalse);
   });
 }

@@ -6,7 +6,8 @@ Bu dosya, bu proje üzerinde çalışan AI ajanları (Cursor, Claude Code vb.) i
 ## Proje özeti
 
 Flutter ile geliştirilen, çoklu platform (Android, iOS, Windows, Linux) kişisel EPUB
-okuyucu. Kullanıcı hazır `.epub` yükler; sunucu dönüştürme/OCR yok. v1 tamamen offline.
+okuyucu. Hazır `.epub` çevrimdışı eklenir. PDF seçilirse `converter/` servisi OCR
+yapıp EPUB döner; okuma yine yalnızca EPUB ve CFI ile, çevrimdışıdır.
 
 - **Görünen ad:** EPUB Kütüphanesi  
 - **Paket / applicationId:** `com.epubkutuphanesi.app`  
@@ -21,18 +22,22 @@ okuyucu. Kullanıcı hazır `.epub` yükler; sunucu dönüştürme/OCR yok. v1 t
 - **Metadata:** `epubx`
 - **Dosya:** `file_picker` + `path_provider`
 - **Lint:** AidatPanel ile uyumlu `analysis_options.yaml` (flutter_lints / strict)
+- **PDF dönüşümü:** `converter/` — Express, disk kuyruğu, ocrmypdf, Calibre.
+  Adres `lib/config/converter_config.dart` içinde sabit; kullanıcıdan istenmez.
+  Faz 4 senkronu değildir.
 - **v2 (ileride, kodlama):** Node.js/Express/Prisma/PostgreSQL + Firebase Auth
-  (AidatPanel deseni) — v1’e sync veya ağ katmanı eklenmez
+  (AidatPanel deseni) — v1’e sync veya Firebase eklenmez
 
 Bu listedeki seçimleri değiştirmeyin; “daha iyi paket” diye Hive↔Drift veya
 Riverpod↔Provider swap önermeyin.
 
 ## Kesin kurallar
 
-1. **v1’de sunucu tarafı dönüştürme YOK.** Sadece hazır `.epub`. PDF, OCR, Calibre
-   entegrasyonu önermeyin veya eklemeyin.
+1. **Okuma yalnızca EPUB.** PDF yüklenince `converter/` (OCR + Calibre) EPUB üretir.
+   Uygulama içi PDF render paketi eklemeyin. Faz 4 sync / Firebase Auth eklemeyin.
 2. **Orijinal dosyayı taşımayın/silmeyin.** Seçilen dosya uygulama belge klasörüne
-   **kopyalanır**. Orijinal silinse bile kütüphane kopyası kalmalı.
+   **kopyalanır**. Orijinal silinse bile kütüphane kopyası kalmalı. PDF kopyası,
+   EPUB indirilip metadata yazılınca silinebilir.
 3. **CFI tek doğruluk kaynağıdır** (ilerleme + işaretler). Sayfa numarasına güvenmeyin.
    `onRelocated` kayıtları **debounce** edilir; her scroll’da Hive yazılmaz.
 4. **Lugat / kelime anlamı YOK (v1).** `onTextSelected`, DictionaryService, sözlük
@@ -44,7 +49,8 @@ Riverpod↔Provider swap önermeyin.
    yönetilir.
 7. **Import hata yolu:** Bozuk EPUB / kopyalama hatası → kullanıcıya Türkçe mesaj;
    yarım Hive kaydı veya yetim dosya bırakmayın. Kapak/metadata yoksa placeholder ile
-   devam edin.
+   devam edin. PDF’te sunucu yoksa kayıt açmayın. Dönüşüm hatasında kayıt `failed`
+   kalır, yerel PDF durur, yarım EPUB ve yetim kapak silinir.
 
 ## Kod stili ve mimari
 
@@ -66,7 +72,8 @@ Riverpod↔Provider swap önermeyin.
 ```
 lib/
   models/         # Book, Bookmark, ReadingProgress
-  services/       # EpubImportService, LibraryService, ReadingProgressService
+  services/       # EpubImportService, LibraryService, PdfConversionService, ReadingProgressService
+converter/        # PDF → EPUB (OCR + Calibre). Faz 4 senkronu değil.
   screens/
     library/      # Kitaplık
     reader/       # Okuma
@@ -80,6 +87,6 @@ lib/
 
 - PDF render paketleri (pdfx, Syncfusion vb.)
 - Lugat / sözlük / `onTextSelected` anlam akışı
-- v1’de sunucu upload/sync endpoint’i veya Firebase Auth
+- Faz 4 sync, Firebase Auth veya EPUB’u PDF olarak ekranda açmak
 - `localStorage` / tarayıcı depolama API’leri (Flutter native; konu dışı)
 - KUTUPHANE.md’deki faz sırasını atlayarak v2 sync veya lugat iskeleti
